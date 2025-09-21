@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          margin: 0;
+          background: linear-gradient(to right, #74ebd5, #9face6);
+
+          transition: background 1s ease-in-out;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        .weather-container {
+          background: rgba(255, 255, 255, 0.85);
+          padding: 25px;
+          border-radius: 12px;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+          text-align: center;
+          width: 90%;
+          max-width: 420px;
+          transition: transform 0.3s ease;
+        }
+        .weather-container:hover {
+          transform: translateY(-3px);
+        }
+        h1 {
+          color: #333;
+          margin-bottom: 15px;
+        }
+        input[type="text"] {
+          width: 100%;
+          padding: 12px;
+          margin-bottom: 12px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          font-size: 16px;
+        }
+        button {
+          background: #007bff;
+          color: white;
+          padding: 10px 18px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+          transition: background 0.3s ease;
+        }
+        button:hover {
+          background: #0056b3;
+        }
+        #weatherResult {
+          margin-top: 20px;
+          border-top: 1px solid #eee;
+          padding-top: 15px;
+          font-size: 16px;
+          color: #444;
+          text-align: left;
+        }
+        #weatherResult h2 {
+          margin-top: 0;
+          color: #222;
+        }
+        .error {
+          color: red;
+          margin-top: 10px;
+        }
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #007bff;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          animation: spin 1s linear infinite;
+          margin: 15px auto;
+          display: none;
+        }
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
+        }
+        .toggle-unit {
+          margin-top: 12px;
+          font-size: 14px;
+          cursor: pointer;
+          color: #007bff;
+          text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="weather-container">
+    <h1>🌤 Weather App</h1>
+    <input type="text" id="cityInput" placeholder="Enter city name" />
+    <button onclick="getWeather()">Get Weather</button>
+    <div class="loader" id="loader"></div>
+    <div id="weatherResult"></div>
+    <div id="errorMessage" class="error"></div>
+    <div class="toggle-unit" onclick="toggleUnits()">Switch °C / °F</div>
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:8080/api/weather';
+    let useCelsius = true;
+
+    async function getWeather() {
+      const city = document.getElementById('cityInput').value.trim();
+      const loader = document.getElementById('loader');
+      const weatherResultDiv = document.getElementById('weatherResult');
+      const errorMessageDiv = document.getElementById('errorMessage');
+
+      weatherResultDiv.innerHTML = '';
+      errorMessageDiv.innerHTML = '';
+
+      if (!city) {
+        errorMessageDiv.innerHTML = '⚠️ Please enter a city name.';
+        return;
+      }
+
+      loader.style.display = 'block'; // show loader
+
+      try {
+        const response = await fetch(`${API_BASE_URL}?city=${encodeURIComponent(city)}`);
+        loader.style.display = 'none'; // hide loader
+
+        if (!response.ok) {
+          throw new Error(response.status === 404
+            ? 'City not found. Please check the spelling.'
+            : `Error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        displayWeather(data);
+
+      } catch (error) {
+        loader.style.display = 'none';
+        errorMessageDiv.innerHTML = `❌ Failed to fetch weather: ${error.message}`;
+        console.error('Error fetching weather:', error);
+      }
+    }
+
+    function displayWeather(data) {
+      const weatherResultDiv = document.getElementById('weatherResult');
+
+      // Avoid duplicate description like "Mist Mist"
+      const weatherMain = data.weather[0].main;
+      const weatherDesc = data.weather[0].description;
+      const description =
+        weatherMain.toLowerCase() === weatherDesc.toLowerCase()
+          ? weatherMain
+          : `${weatherMain} - ${weatherDesc}`;
+
+      const temp = formatTemp(data.main.temp);
+      const feelsLike = formatTemp(data.main.feels_like);
+      const minTemp = formatTemp(data.main.temp_min);
+      const maxTemp = formatTemp(data.main.temp_max);
+
+      // Set dynamic background
+      setBackground(weatherMain.toLowerCase());
+
+      weatherResultDiv.innerHTML = `
+        <h2>${data.name}, ${data.sys.country}</h2>
+        <p>${description}</p>
+        <p>🌡 Temperature: ${temp} (Feels like: ${feelsLike})</p>
+        <p>📉 Min: ${minTemp} / 📈 Max: ${maxTemp}</p>
+        <p>💧 Humidity: ${data.main.humidity}%</p>
+        <p>💨 Wind: ${data.wind.speed} m/s</p>
+        <p>📊 Pressure: ${data.main.pressure} hPa</p>
+      `;
+    }
+
+    function formatTemp(tempC) {
+      return useCelsius
+        ? `${tempC.toFixed(1)} °C`
+        : `${(tempC * 9/5 + 32).toFixed(1)} °F`;
+    }
+
+    function toggleUnits() {
+      useCelsius = !useCelsius;
+      const city = document.getElementById('cityInput').value.trim();
+      if (city) {
+        getWeather(); // refresh with new unit
+      }
+    }
+
+    function setBackground(weather) {
+      let imgUrl = "";
+
+      if (weather.includes("rain")) {
+        imgUrl = "https://tse1.mm.bing.net/th/id/OIP.uTRxyDECsATN2PI-2a0XuQHaEo?rs=1&pid=ImgDetMain&o=7&rm=3"; // Rainy
+      } else if (weather.includes("snow") || weather.includes("winter")) {
+        imgUrl = "https://tse1.mm.bing.net/th/id/OIP.FDt_CU571nU763aZKdV1XwHaEK?rs=1&pid=ImgDetMain&o=7&rm=3"; // Snow
+      } else if (weather.includes("clear")) {
+        imgUrl = "https://tse3.mm.bing.net/th/id/OIP.e1Dij42QESa1S5O1guiEzgHaEo?rs=1&pid=ImgDetMain&o=7&rm=3"; // Sunny
+      } else if (weather.includes("cloud")) {
+        imgUrl = "https://images.pexels.com/photos/821944/pexels-photo-821944.jpeg?cs=srgb&dl=cloudiness-clouds-cloudy-sky-821944.jpg&fm=jpg"; // Cloudy
+      } else if (weather.includes("mist") || weather.includes("fog")) {
+        imgUrl = "https://wallup.net/wp-content/uploads/2015/12/152759-lake-forest-nature-sunset-mist-landscape.jpg"; // Mist/Fog
+      } else {
+        imgUrl = "https://i.pinimg.com/originals/8f/05/9e/8f059e2e1eb1b7d28355da095b7c1686.jpg"; // Default (sunrise/sunset)
+      }
+
+      document.body.style.backgroundImage = `url('${imgUrl}')`;
+    }
+</script>
+</body>
+</html>
