@@ -25,7 +25,7 @@ A real-time **Weather Application** built with **Spring Boot** and the **OpenWea
 * **Deployment**:
 
   * Frontend → GitHub Pages / Netlify
-  * Backend → Heroku
+  * Backend → render
 
 ---
 
